@@ -1,7 +1,8 @@
 # Cineca course choice helper
 
 A simple script that generates an Excel file to help you decide what courses to
-attend in your next academic adventure.
+attend in your next academic adventure. This file will contain a list of all the
+available courses for the chosen cds divided by Year, Teaching and Semester.
 
 ## Compatibility
 
