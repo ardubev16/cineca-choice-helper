@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
 
 import argparse
-from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from typing import Literal
 
 import inquirer
 import pandas as pd
 import requests
 
-COURSE_CATALOGUE_URL_TEMPLATE = "https://unitn.coursecatalogue.cineca.it/api/v1/corso/{aa}/{corso_cod}"
-COURSE_URL_TEMPLATE = "https://unitn.coursecatalogue.cineca.it/insegnamenti/{aa}/{cod}/{ordinamento_aa}/{corso_percorso_id}/{corso_cod}"  # fmt: skip # noqa: E501
+UNIVERSITIES = [
+    "unitn",
+]
+
+CINECA_BASE_URL = "https://{university}.coursecatalogue.cineca.it/{path}"
+COURSE_CATALOGUE_PATH_TEMPLATE = "api/v1/corso/{aa}/{corso_cod}"
+COURSE_PATH_TEMPLATE = "insegnamenti/{aa}/{cod}/{ordinamento_aa}/{corso_percorso_id}/{corso_cod}"
 
 
-@dataclass
 class Config:
-    year: int
-    lang: Literal["en", "it"]
+    def __init__(self, year: int, lang: Literal["en", "it"]):
+        self.year: int = year
+        self.lang: Literal["en", "it"] = lang
+        self.university: str = self._select_university()
+
+    def _select_university(self) -> str:
+        return inquirer.list_input("Select your University", choices=UNIVERSITIES)
 
 
 class Keys:
@@ -26,18 +35,17 @@ class Keys:
         self.periodo_didattico = f"periodo_didattico_{lang}"
 
 
-def select_year() -> int:
-    return inquirer.text("Select the Academic year", default=datetime.today().year)
-
-
 class CourseChooser:
     def __init__(self, config: Config):
         self.year = config.year
         self.keys = Keys(config.lang)
+        self.cineca_base_url = partial(CINECA_BASE_URL.format, university=config.university)
+
+        print(f"NOTE: if you don't know what to answer to the following questions take a look at: {self.cineca_base_url(path="")}")  # fmt: skip # noqa: E501
 
     def get_cds(self) -> str:
         gruppi = requests.get(
-            "https://unitn.coursecatalogue.cineca.it/api/v1/corsi",
+            self.cineca_base_url(path="api/v1/corsi"),
             params={"anno": self.year, "minimal": "true"},
             timeout=30,
         ).json()
@@ -48,7 +56,7 @@ class CourseChooser:
 
     def get_course_catalogue(self, cod: str) -> pd.DataFrame:
         course_paths = requests.get(
-            COURSE_CATALOGUE_URL_TEMPLATE.format(aa=self.year, corso_cod=cod),
+            self.cineca_base_url(path=COURSE_CATALOGUE_PATH_TEMPLATE.format(aa=self.year, corso_cod=cod)),
             timeout=30,
         ).json()["percorsi"]
         courses = self._select_with_des("Select the study path", course_paths)
@@ -78,7 +86,7 @@ class CourseChooser:
                     )
 
                 for activity in teaching["attivita"]:
-                    link = COURSE_URL_TEMPLATE.format(**activity)
+                    link = self.cineca_base_url(path=COURSE_PATH_TEMPLATE.format(**activity))
                     intermidiate.append(
                         {
                             "Year": year["anno"],
@@ -126,9 +134,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = Config(args.year, args.lang)
-    print(
-        "NOTE: if you don't know what to answer to the following questions take a look at: https://unitn.coursecatalogue.cineca.it/",
-    )
 
     cc = CourseChooser(config)
     cod = cc.get_cds()
