@@ -43,7 +43,7 @@ class CourseChooser:
 
         print(f"NOTE: if you don't know what to answer to the following questions take a look at: {self.cineca_base_url(path="")}")  # fmt: skip # noqa: E501
 
-    def get_cds(self) -> str:
+    def get_degree(self) -> str:
         gruppi = requests.get(
             self.cineca_base_url(path="api/v1/corsi"),
             params={"anno": self.year, "minimal": "true"},
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     config = Config(args.year, args.lang)
 
     cc = CourseChooser(config)
-    cod = cc.get_cds()
+    cod = cc.get_degree()
     courses = cc.get_course_catalogue(cod)
 
     save_to_xlsx(args.filename, courses)
