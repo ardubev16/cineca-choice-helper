@@ -1,4 +1,4 @@
-inquirer
-openpyxl
-pandas
-requests
+inquirer~=3.4.0
+pandas~=2.2.2
+requests~=2.32.3
+xlsxwriter~=3.2.0
